@@ -1,7 +1,7 @@
 import { Api } from './lib.js';
 
-//const baseURL = 'https://foxslot-vs-posts.herokuapp.com';
-const baseURL = 'http://localhost:9999';
+const baseURL = 'https://foxslot-vs-posts.herokuapp.com';
+//const baseURL = 'http://localhost:9999';
 const api = new Api(baseURL);
 
 const rootEl = document.getElementById('root');
