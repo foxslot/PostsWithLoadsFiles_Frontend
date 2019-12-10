@@ -1,7 +1,7 @@
 import { Api } from './lib.js';
 
-const baseURL = 'https://foxslot-vs-posts.herokuapp.com';
-//const baseURL = 'http://localhost:9999';
+//const baseURL = 'https://foxslot-vs-posts.herokuapp.com';
+const baseURL = 'http://localhost:9999';
 const api = new Api(baseURL);
 
 const rootEl = document.getElementById('root');
@@ -54,6 +54,10 @@ addFormEl.onsubmit = function (ev) {
     typeEl.value = 'regular';
     labelLoadFile.textContent = 'Добавление поста с файлом. После выбора, файл будет загружен на сервер и ссылка на него автоматически подставлена в поле ввода ссылки на ресурс';
 
+    //очистка области видео
+    containerVideoEl.innerHTML = '';
+    infoVideoEl.textContent = 'После записи видео, ссылка на него будет автоматически добавлена в поле ввода формы для создания поста';
+
 };
 
 //форма для добавления файла
@@ -93,7 +97,7 @@ mediaEl.addEventListener('change', ev => {
     }).then(data => {
         const fileUrl = `${baseURL}/static/${data.name}`;
         inputEl.value = fileUrl;
-        labelLoadFile.textContent = 'Файл загружен' 
+        labelLoadFile.textContent = 'Файл загружен'
     }).catch(e => {
         console.log(e);
         labelLoadFile.textContent = `Ошибка! Файл не загружен.${e}`;
@@ -104,9 +108,106 @@ mediaEl.addEventListener('change', ev => {
 });
 
 
+//кнопка записи видео
+const addVideoEl = addElement('button', 'btn btn-primary my-2 mr-sm-2', formLoadFileEl);
+addVideoEl.textContent = 'Добавить видео';
+
+//<p class="card-text"
+const infoVideoEl = addElement('p', 'card-text', formLoadFileEl);
+infoVideoEl.textContent = 'После записи видео, ссылка на него будет автоматически добавлена в поле ввода формы для создания поста';
 
 
+//хранилище для хранения видео
+const containerVideoEl = document.createElement('div');
+formLoadFileEl.appendChild(containerVideoEl);
 
+
+addVideoEl.addEventListener('click', e => {
+
+    e.preventDefault();
+    containerVideoEl.innerHTML = '';
+
+    if (!navigator.mediaDevices) { // !undefined -> true
+        // alert('...');
+        const alertEl = document.createElement('div');
+        alertEl.textContent = 'Your browser not support media! Use Yande Browser.';
+        document.body.appendChild(alertEl);
+        return;
+    }
+
+    const outputVideoEl = document.createElement('video');
+    outputVideoEl.id = 'output';
+    outputVideoEl.width = '400';
+    outputVideoEl.height = '300';
+    containerVideoEl.appendChild(outputVideoEl);
+
+    if (!window.MediaRecorder) {
+        const alertEl = document.createElement('div');
+        alertEl.textContent = 'Your browser not media recordering! Use Yande Browser.';
+        document.body.appendChild(alertEl);
+        return;
+    }
+
+    navigator.mediaDevices.getUserMedia({ audio: true, video: true })
+        .then(stream => {
+
+            const mediaRecorder = new MediaRecorder(stream, {
+                mediaType: 'video/webm', // MIME TYPE
+            });
+
+            const blobParts = []; // для хранения "кусков" записанного контента
+
+            mediaRecorder.addEventListener('dataavailable', ev => {
+                blobParts.push(ev.data);
+            });
+
+            mediaRecorder.addEventListener('stop', ev => {
+                stream.getTracks().forEach(o => o.stop());
+                const blob = new Blob(blobParts);
+                outputVideoEl.srcObject = null;
+
+                const formData = new FormData();
+                formData.append('media', blob);
+
+                fetch(`${baseURL}/upload`, {
+                    method: 'POST',
+                    body: formData,
+                }).then(res => {
+                    if (!res.ok) {
+                        throw new Error(res.statusText);
+                    }
+                    return res.json();
+                }).then(data => {
+                    const videoURL = `${baseURL}/static/${data.name}`;
+                    outputVideoEl.src = videoURL;
+                    outputVideoEl.controls = true;
+                    outputVideoEl.muted = true;
+                    outputVideoEl.play();
+                    infoVideoEl.textContent = 'Видео записано, ссылка установлена';
+
+                    inputEl.value = videoURL;
+
+                }).catch(e => {
+                    console.log(e);
+                });
+            });
+
+            mediaRecorder.start();
+            outputVideoEl.srcObject = stream;
+            outputVideoEl.muted = true;
+            outputVideoEl.controls = false;
+            outputVideoEl.play();
+            infoVideoEl.textContent = 'Идет запись видео...'
+
+            setTimeout(() => {
+                mediaRecorder.stop();
+            }, 5000);
+
+        }).catch(e => {
+            console.log(e);
+        });
+
+});
 
 //кнопка загрузки постов
 const buttonLoadNewPosts = addElement('button', 'btn btn-primary d-block mx-auto mt-2', rootEl);
@@ -121,7 +222,8 @@ const postsEl = addElement('ul', 'list-group', rootEl);
 const addPostsEl = addElement('button', 'btn btn-primary d-block mx-auto mt-2', rootEl);
 addPostsEl.textContent = 'Загрузить еще';
 addPostsEl.setAttribute('data-id', 'load-more-button');
-addPostsEl.addEventListener('click', loadPosts)
+addPostsEl.addEventListener('click', loadPosts);
+rootEl.removeChild(addPostsEl);
 
 function loadPosts() {
 
@@ -136,6 +238,7 @@ function loadPosts() {
         data => {
             if (data.length >= numberPosts) {
                 addPosts(data);
+                rootEl.appendChild(addPostsEl);
             } else if (data.length === 0) {
                 const buttonLoadEl = rootEl.querySelector('[data-id=load-more-button]');
                 rootEl.removeChild(buttonLoadEl);
@@ -144,6 +247,8 @@ function loadPosts() {
                 const buttonLoadEl = rootEl.querySelector('[data-id=load-more-button]');
                 rootEl.removeChild(buttonLoadEl);
             };
+            setCheckNewPosts();
+
         }
     ).catch(error => {
         console.log(error);
@@ -399,7 +504,7 @@ function findIndexById(id) {
 function addNewPost(item) {
     posts.unshift(item);
     newPostsId = posts[0].id + 1;
-    rebuildLists();    
+    rebuildLists();
 }
 
 function addNewPostEl(item) {
@@ -507,30 +612,32 @@ function loadNewPosts() {
         });
 };
 
-setInterval(() => {
-    fetch(`${baseURL}/new-posts/${newPostsId}`)
-        .then(
-            res => {
-                if (!res.ok) {
-                    throw new Error(res.statusText);
+function setCheckNewPosts() {
+    setInterval(() => {
+        fetch(`${baseURL}/new-posts/${newPostsId}`)
+            .then(
+                res => {
+                    if (!res.ok) {
+                        throw new Error(res.statusText);
+                    }
+                    return res.text();
                 }
-                return res.text();
-            }
-        ).then(
-            data => {
+            ).then(
+                data => {
 
-                if (data === 'false') {
-                    return;
+                    if (data === 'false') {
+                        return;
+                    }
+
+                    buttonLoadNewPosts.classList.remove('button-invisibility');
+                    buttonLoadNewPosts.textContent = `Загрузить новые посты (${data})`;
+
                 }
-
-                buttonLoadNewPosts.classList.remove('button-invisibility');
-                buttonLoadNewPosts.textContent = `Загрузить новые посты (${data})`;
-
-            }
-        ).catch(error => {
-            console.log(error);
-        });
-}, 5000);
+            ).catch(error => {
+                console.log(error);
+            });
+    }, 5000);
+};
 
 loadPosts();
 
