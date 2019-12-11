@@ -6,6 +6,7 @@ const api = new Api(baseURL);
 const rootEl = document.getElementById('root');
 
 let posts = [];
+const ConnectionServer = false;
 
 let lastSeenID = 0;
 let newPostsId = 0;
@@ -246,8 +247,11 @@ function loadPosts() {
                 const buttonLoadEl = rootEl.querySelector('[data-id=load-more-button]');
                 rootEl.removeChild(buttonLoadEl);
             };
-            setCheckNewPosts();
 
+            if (!ConnectionServer) {
+                setCheckNewPosts();
+                ConnectionServer = true;
+            };
         }
     ).catch(error => {
         console.log(error);
