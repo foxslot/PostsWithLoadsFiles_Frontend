@@ -64,7 +64,7 @@ addFormEl.onsubmit = function (ev) {
 const formLoadFileEl = document.createElement('form');
 rootEl.appendChild(formLoadFileEl);
 formLoadFileEl.id = 'simple';
-formLoadFileEl.action = 'http://localhost:9999/upload';
+formLoadFileEl.action = `${baseURL}/upload`;
 formLoadFileEl.method = 'POST';
 formLoadFileEl.enctype = 'multipart/form-data';
 
@@ -97,6 +97,17 @@ mediaEl.addEventListener('change', ev => {
     }).then(data => {
         const fileUrl = `${baseURL}/static/${data.name}`;
         inputEl.value = fileUrl;
+
+        if (first.type === 'image/png' || first.type === 'image/jpeg' || first.type === 'image/gif') {
+            typeEl.value = 'image';
+        } else if (first.type === 'application/octet-stream' || first.type === 'video/webm') {
+            typeEl.value = 'video';
+        } else if (first.type === 'audio/webm' || first.type === 'audio/wave') {
+            typeEl.value = 'audio';
+        }else {
+            typeEl.value = 'regular';
+        };
+
         labelLoadFile.textContent = 'Файл загружен'
     }).catch(e => {
         console.log(e);
@@ -112,7 +123,6 @@ mediaEl.addEventListener('change', ev => {
 const addVideoEl = addElement('button', 'btn btn-primary my-2 mr-sm-2', formLoadFileEl);
 addVideoEl.textContent = 'Добавить видео';
 
-//<p class="card-text"
 const infoVideoEl = addElement('p', 'card-text', formLoadFileEl);
 infoVideoEl.textContent = 'После записи видео, ссылка на него будет автоматически добавлена в поле ввода формы для создания поста';
 
@@ -127,8 +137,7 @@ addVideoEl.addEventListener('click', e => {
     e.preventDefault();
     containerVideoEl.innerHTML = '';
 
-    if (!navigator.mediaDevices) { // !undefined -> true
-        // alert('...');
+    if (!navigator.mediaDevices) {
         const alertEl = document.createElement('div');
         alertEl.textContent = 'Your browser not support media! Use Yande Browser.';
         document.body.appendChild(alertEl);
@@ -186,6 +195,7 @@ addVideoEl.addEventListener('click', e => {
                     infoVideoEl.textContent = 'Видео записано, ссылка установлена';
 
                     inputEl.value = videoURL;
+                    typeEl.value = 'video';
 
                 }).catch(e => {
                     console.log(e);
